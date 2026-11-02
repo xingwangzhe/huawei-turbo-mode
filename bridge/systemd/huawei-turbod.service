@@ -1,0 +1,15 @@
+[Unit]
+Description=Huawei Turbo persistence and desktop bridge
+Documentation=https://github.com/xingwangzhe/huawei-turbo-mode
+After=power-profiles-daemon.service
+Wants=power-profiles-daemon.service
+
+[Service]
+Type=simple
+ExecStart=/usr/local/libexec/huawei-turbo/huawei-turbod
+Restart=always
+RestartSec=5
+Environment=PYTHONUNBUFFERED=1
+
+[Install]
+WantedBy=multi-user.target

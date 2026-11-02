@@ -1,0 +1,35 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  build-test:
+    runs-on: ubuntu-latest
+    env:
+      CFLAGS: -O2 -g -Wall -Wextra -Werror -Wno-unused-parameter
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build
+        run: make
+      - name: C selftest and Python bridge tests
+        run: make test
+      - name: Python syntax
+        run: |
+          python3 -m py_compile \
+            bridge/huawei_turbod.py \
+            bridge/sources/ppd.py \
+            scripts/summarize.py
+      - name: Shell syntax
+        run: |
+          set -e
+          for f in scripts/*.sh core/scripts/*.sh \
+                   bridge/huawei-turbo-ctl bridge/huawei-turbo-set-state \
+                   bridge/systemd/huawei-turbo-sleep; do
+            sh -n "$f"
+          done

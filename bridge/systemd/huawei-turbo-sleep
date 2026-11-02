@@ -1,0 +1,8 @@
+#!/bin/sh
+# SPDX-License-Identifier: GPL-2.0
+# Re-apply the saved Huawei turbo state after resume/hibernate.
+case "${1:-}" in
+	post)
+		systemctl restart huawei-turbod.service
+		;;
+esac

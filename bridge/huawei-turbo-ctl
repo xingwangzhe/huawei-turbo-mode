@@ -1,0 +1,54 @@
+#!/bin/sh
+# SPDX-License-Identifier: GPL-2.0
+# User-facing CLI for huawei-turbod.
+set -eu
+
+STATUS_FILE="${HUAWEI_TURBO_STATUS_FILE:-/run/huawei-turbo/status}"
+SET_STATE="${HUAWEI_TURBO_SET_STATE:-/usr/local/libexec/huawei-turbo/huawei-turbo-set-state}"
+
+cmd="${1:-status}"
+case "$cmd" in
+	on|off)
+		if ! command -v pkexec >/dev/null 2>&1; then
+			echo "pkexec not found; run as root: $SET_STATE $cmd" >&2
+			exit 1
+		fi
+		pkexec "$SET_STATE" "$cmd"
+		i=0
+		while [ "$i" -lt 20 ]; do
+			if [ -r "$STATUS_FILE" ] &&
+			   grep -q "\"desired\": \"$cmd\"" "$STATUS_FILE"; then
+				break
+			fi
+			sleep 0.25
+			i=$((i + 1))
+		done
+		;;
+	status)
+		;;
+	*)
+		echo "usage: huawei-turbo-ctl [on|off|status]" >&2
+		exit 2
+		;;
+esac
+
+if [ ! -r "$STATUS_FILE" ]; then
+	echo "status file not found: $STATUS_FILE" >&2
+	echo "is huawei-turbod.service running?" >&2
+	exit 1
+fi
+
+python3 - "$STATUS_FILE" <<'PY'
+import json
+import sys
+
+with open(sys.argv[1], encoding="utf-8") as handle:
+    data = json.load(handle)
+
+print(f"desired={data.get('desired')} actual={data.get('actual')} "
+      f"ok={data.get('ok')}")
+print(f"updated={data.get('updated')}")
+message = data.get("message")
+if message:
+    print(message)
+PY

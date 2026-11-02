@@ -1,0 +1,30 @@
+#!/bin/sh
+# SPDX-License-Identifier: GPL-2.0
+# Root helper: persist the desired state and let huawei-turbod apply it.
+set -eu
+
+STATE_DIR="${HUAWEI_TURBO_STATE_DIR:-/var/lib/huawei-turbo}"
+STATE_FILE="$STATE_DIR/desired"
+PERF="${HUAWEI_PERF:-/usr/local/bin/huawei-perf}"
+
+case "${1:-}" in
+	on|off)
+		state="$1"
+		;;
+	*)
+		echo "usage: $0 on|off" >&2
+		exit 2
+		;;
+esac
+
+mkdir -p "$STATE_DIR"
+tmp="$STATE_FILE.tmp.$$"
+printf '%s\n' "$state" >"$tmp"
+chmod 0644 "$tmp"
+mv "$tmp" "$STATE_FILE"
+
+if systemctl is-active --quiet huawei-turbod.service; then
+	systemctl restart huawei-turbod.service
+else
+	"$PERF" unlock "$state"
+fi

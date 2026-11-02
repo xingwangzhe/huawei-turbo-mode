@@ -1,0 +1,5 @@
+{
+  "follow_ppd": true,
+  "retry_seconds": 60,
+  "dbus": true
+}
