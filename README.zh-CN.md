@@ -136,4 +136,3 @@ sudo ./core/scripts/fan-check.sh 20
 ## License
 
 GPL-2.0，见 [LICENSE](LICENSE)。
-
