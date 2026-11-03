@@ -78,7 +78,9 @@ Turbo on，Balanced/Power Saver 映射到 off。
 - `WMAA` 需要第二次调用才分发；
 - `STUB` 检查 `ACIN == 1` 且 `RSOC >= 21%`；
 - 命令：GET `0x0E04`，SET ON `0x10F04`，SET OFF `0x0F04`；
-- 实测 `TUBO=1`、MMIO PL1 20 W → 31 W。
+- 实测 `TUBO=1`、MMIO PL1 20 W → 31 W；
+- 注意：`thermald --adaptive` 的 DPTF 策略会把 PL1 压到 10 W，安装脚本会装
+  `10-no-adaptive.conf`，并由 `huawei-rapl` 服务在状态变化时写回 31 W。
 
 详细协议、ACPI 代码和完整型号见 [`core/README.zh-CN.md`](core/README.zh-CN.md)。
 
@@ -117,10 +119,15 @@ sudo ./core/scripts/fan-check.sh 20
 
 实测数据、热限制说明和持久化验证见 [`docs/MEASUREMENTS.md`](docs/MEASUREMENTS.md)。
 
+注意：后续看到的 `TUBO=1` 但 PL1=10 W，不是 EC 自己降额，而是
+`thermald --adaptive` 读取固件 DPTF passive policy 后覆盖了 RAPL；
+`TDPS` 也不是持续状态。停掉 adaptive 并由 `huawei-rapl` 写回后，31 W 可以保持。
+
 ## 安全与兼容性
 
 - 不直接写 EC 寄存器；只走厂商 WMI。
 - 固件的 AC/RSOC 检查和 EC 温度保护保持不变。
+- 不修改 EC 固件；thermald 的 `--adaptive` 只通过 systemd drop-in 调整，可回滚。
 - 只在 BoF-XX-PCB / M1010 上验证；其他机型可能使用
   `\_SB.WMI1.WMAA` 或不同 opcode。
 - 回滚：`huawei-turbo-ctl off`，或 `sudo ./scripts/uninstall.sh`，或关机重启。

@@ -1,0 +1,14 @@
+[Unit]
+Description=Apply Huawei RAPL limits for the current turbo state
+Documentation=https://github.com/xingwangzhe/huawei-turbo-mode
+After=thermald.service huawei-turbod.service
+Wants=huawei-turbod.service
+ConditionPathExists=/sys/kernel/debug/huawei-wmi/call
+StartLimitIntervalSec=0
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/libexec/huawei-turbo/huawei-apply-rapl
+
+[Install]
+WantedBy=multi-user.target

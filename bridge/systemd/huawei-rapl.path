@@ -1,0 +1,10 @@
+[Unit]
+Description=Watch Huawei turbo status for RAPL limit updates
+Documentation=https://github.com/xingwangzhe/huawei-turbo-mode
+
+[Path]
+PathChanged=/run/huawei-turbo/status
+Unit=huawei-rapl.service
+
+[Install]
+WantedBy=multi-user.target

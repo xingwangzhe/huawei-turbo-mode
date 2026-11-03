@@ -78,7 +78,10 @@ Key points:
 - `WMAA` only dispatches on the second call;
 - `STUB` requires `ACIN == 1` and `RSOC >= 21%`;
 - commands: GET `0x0E04`, SET ON `0x10F04`, SET OFF `0x0F04`;
-- measured: `TUBO=1`, MMIO PL1 20 W → 31 W.
+- measured: `TUBO=1`, MMIO PL1 20 W → 31 W;
+- note: `thermald --adaptive` applies the DPTF policy and clamps PL1 to 10 W;
+  the installer adds `10-no-adaptive.conf`, and `huawei-rapl` writes 31 W back
+  when the turbo state changes.
 
 Full protocol, ACPI excerpts and the complete model are in
 [`core/README.md`](core/README.md).
@@ -121,10 +124,16 @@ See [`docs/FAN.md`](docs/FAN.md).
 See [`docs/MEASUREMENTS.md`](docs/MEASUREMENTS.md) for the measured PL1, EC bits,
 thermal limits and the boot/resume persistence checks.
 
+The later `TUBO=1` / PL1=10 W state was not EC policy: `thermald --adaptive` was
+applying the firmware DPTF passive policy. `TDPS` is transient. Removing
+`--adaptive` and applying the RAPL limits from `huawei-rapl` holds 31 W.
+
 ## Safety and compatibility
 
 - No direct EC register writes; vendor WMI only.
 - Firmware AC/RSOC checks and EC thermal protection remain active.
+- No EC firmware changes; the thermald `--adaptive` behavior is changed through
+  a reversible systemd drop-in.
 - Verified only on BoF-XX-PCB / M1010; other models may use
   `\_SB.WMI1.WMAA` or different opcodes.
 - Rollback: `huawei-turbo-ctl off`, `sudo ./scripts/uninstall.sh`, or power-cycle.

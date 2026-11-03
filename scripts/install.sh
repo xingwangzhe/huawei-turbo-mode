@@ -43,13 +43,27 @@ install -m 0755 "$CORE/build/burn" "$PREFIX/bin/huawei-perf-burn"
 # bridge: generic daemon, CLI and optional PPD adapter
 install -m 0755 "$BRIDGE/huawei_turbod.py" "$LIBEXEC/huawei-turbod"
 install -m 0755 "$BRIDGE/huawei-turbo-set-state" "$LIBEXEC/huawei-turbo-set-state"
+install -m 0755 "$BRIDGE/huawei-apply-rapl" "$LIBEXEC/huawei-apply-rapl"
 install -m 0755 "$BRIDGE/huawei-turbo-ctl" "$PREFIX/bin/huawei-turbo-ctl"
 install -m 0644 "$BRIDGE/sources/__init__.py" "$LIBEXEC/sources/__init__.py"
 install -m 0644 "$BRIDGE/sources/ppd.py" "$LIBEXEC/sources/ppd.py"
 install -m 0644 "$BRIDGE/systemd/huawei-turbod.service" /etc/systemd/system/huawei-turbod.service
+install -m 0644 "$BRIDGE/systemd/huawei-rapl.service" /etc/systemd/system/huawei-rapl.service
+install -m 0644 "$BRIDGE/systemd/huawei-rapl.path" /etc/systemd/system/huawei-rapl.path
 install -m 0755 "$BRIDGE/systemd/huawei-turbo-sleep" /etc/systemd/system-sleep/huawei-turbo
 install -m 0644 "$BRIDGE/dbus/org.xingwangzhe.HuaweiTurbo.conf" \
 	/etc/dbus-1/system.d/org.xingwangzhe.HuaweiTurbo.conf
+
+# thermald --adaptive applies the firmware DPTF passive policy and can
+# clamp PL1 to 10 W while TUBO=1.  Install a drop-in only when thermald is
+# present; the rest of the project works without it.
+thermald_dropin=0
+if command -v thermald >/dev/null 2>&1; then
+	install -d /etc/systemd/system/thermald.service.d
+	install -m 0644 "$BRIDGE/systemd/10-no-adaptive.conf" \
+		/etc/systemd/system/thermald.service.d/10-no-adaptive.conf
+	thermald_dropin=1
+fi
 
 # Bridge config: PPD is optional; D-Bus is the generic desktop API.
 if [ ! -f "$CONFIG_DIR/config.json" ]; then
@@ -94,8 +108,13 @@ fi
 
 systemctl daemon-reload
 systemctl reload dbus.service 2>/dev/null || true
+if [ "$thermald_dropin" -eq 1 ] &&
+   systemctl is-active --quiet thermald.service 2>/dev/null; then
+	systemctl restart thermald.service 2>/dev/null || true
+fi
 systemctl enable huawei-turbod.service >/dev/null
 systemctl restart huawei-turbod.service
+systemctl enable --now huawei-rapl.path huawei-rapl.service >/dev/null
 sleep 1
 
 echo "已安装："
@@ -103,7 +122,12 @@ echo "  core   : $PREFIX/bin/huawei-perf"
 echo "  bridge : $PREFIX/bin/huawei-turbo-ctl"
 echo "           $LIBEXEC/huawei-turbod"
 echo "  units  : /etc/systemd/system/huawei-turbod.service"
+echo "           /etc/systemd/system/huawei-rapl.service"
+echo "           /etc/systemd/system/huawei-rapl.path"
 echo "           /etc/systemd/system-sleep/huawei-turbo"
+if [ "$thermald_dropin" -eq 1 ]; then
+	echo "  thermald: /etc/systemd/system/thermald.service.d/10-no-adaptive.conf"
+fi
 echo "  config : $CONFIG_DIR/config.json"
 echo "  dbus   : org.xingwangzhe.HuaweiTurbo"
 echo

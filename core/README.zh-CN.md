@@ -106,9 +106,12 @@ sudo ./core/build/huawei-perf unlock get
 
 EC 位：`EC[0x15]` 从 `0x20` 变为 `0x60`（`TUBO=1`）。
 
-注意：EC 的 PL1/PL2 是动态的。后续在电池 23%、热负载后，即使 `TUBO=1`，EC
-也可能把 MMIO RAPL 降到 10 W / 35 W。这不是解锁失效，而是 EC 根据电池、适配器
-和温度做的动态降额。完整数据见 [../docs/MEASUREMENTS.md](../docs/MEASUREMENTS.md)。
+注意：后续看到的 `TUBO=1` 但 PL1=10 W，不是 EC 自己降额，而是
+`thermald --adaptive` 读取固件 DPTF passive policy 后覆盖了 RAPL。停掉
+thermald 或去掉 `--adaptive` 后，`rapl --pl1 31 --pl2 60.5 --apply` 可以保持
+31 W；15 秒 16 线程 burn 实测 93°C、风扇约 3630 RPM。`TDPS` 在 `STUB` 里被写 1，
+但 EC 随后清零；实测 TDPS=0 时 PL1 仍为 31 W，不要把它当成持续状态。完整数据见
+[../docs/MEASUREMENTS.md](../docs/MEASUREMENTS.md)。
 
 ## 风扇
 

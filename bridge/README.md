@@ -15,6 +15,8 @@ huawei-turbod (root, systemd)
   ├─ /var/lib/huawei-turbo/desired       (persisted target)
   ├─ /run/huawei-turbo/status            (JSON status for UIs)
   ├─ systemd boot + sleep hook           (boot/resume restore)
+  ├─ huawei-rapl.path → huawei-rapl.service (writes PL1/PL2 from status)
+  ├─ thermald drop-in                    (removes --adaptive)
   ├─ retry every 60 s                    (AC/RSOC precondition)
   └─ calls core/huawei-perf
         │
@@ -74,6 +76,22 @@ The CLI does not depend on D-Bus, so it works in scripts and minimal systems.
 /run/huawei-turbo/status         # JSON: desired, actual, ok, message, updated
 ```
 
+## RAPL limits
+
+`huawei-turbod` only toggles EC `TUBO`; PL1/PL2 are applied by
+`huawei-rapl.path` watching `/run/huawei-turbo/status` and calling
+`huawei-perf rapl`:
+
+| State | PL1 | PL2 |
+| --- | --- | --- |
+| `on` | 31 W | 60.5 W (kernel may clamp to 60.0 W) |
+| `off` | 20 W | 60.375 W |
+
+`thermald --adaptive` reads the firmware DPTF passive policy and clamps PL1 to
+10 W; `scripts/install.sh` installs
+`/etc/systemd/system/thermald.service.d/10-no-adaptive.conf` when thermald is
+present.
+
 ## Configuration
 
 `/etc/huawei-turbo/config.json`:
@@ -109,6 +127,7 @@ D-Bus/CLI.
 | Boot/reboot | `huawei-turbod.service` reads `desired` at startup |
 | Suspend/hibernate | `/etc/systemd/system-sleep/huawei-turbo` restarts the daemon in `post` |
 | Desktop profile change | PPD adapter or D-Bus/CLI updates `desired` and applies |
+| Turbo state change | `/run/huawei-turbo/status` triggers `huawei-rapl.path`, which writes PL1/PL2 |
 | AC/RSOC precondition | status records the error; retries according to `retry_seconds` |
 | Kernel/desktop restart | state is in `/var/lib`, independent of the session |
 
@@ -118,6 +137,9 @@ D-Bus/CLI.
 make
 sudo ./scripts/install.sh
 ```
+
+The installer also installs `huawei-rapl.service`/`huawei-rapl.path`; when
+thermald is present it adds the drop-in that removes `--adaptive`.
 
 Uninstall:
 

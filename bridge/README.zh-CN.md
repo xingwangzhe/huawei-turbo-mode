@@ -15,6 +15,8 @@ huawei-turbod (root, systemd)
   ├─ /var/lib/huawei-turbo/desired       （持久化目标状态）
   ├─ /run/huawei-turbo/status            （JSON 状态，供 UI 读取）
   ├─ systemd boot + sleep hook           （开机/唤醒恢复）
+  ├─ huawei-rapl.path → huawei-rapl.service（按状态写 PL1/PL2）
+  ├─ thermald drop-in                    （去掉 --adaptive）
   ├─ retry every 60 s                    （AC/RSOC 条件未满足时）
   └─ calls core/huawei-perf
         │
@@ -80,6 +82,20 @@ CLI 不依赖 D-Bus，适合脚本和没有 D-Bus 集成的环境。
 {"desired":"on","actual":"on","ok":true,"message":"already on (startup)","updated":"2026-11-02T13:27:44+08:00"}
 ```
 
+## RAPL 功耗墙
+
+`huawei-turbod` 只切换 EC `TUBO`；PL1/PL2 由 `huawei-rapl.path` 监听
+`/run/huawei-turbo/status` 后调用 `huawei-perf rapl` 应用：
+
+| 状态 | PL1 | PL2 |
+| --- | --- | --- |
+| `on` | 31 W | 60.5 W（内核可能钳到 60.0 W） |
+| `off` | 20 W | 60.375 W |
+
+`thermald --adaptive` 会读取固件 DPTF passive policy 并把 PL1 压到 10 W；
+`scripts/install.sh` 在检测到 thermald 时安装
+`/etc/systemd/system/thermald.service.d/10-no-adaptive.conf` 去掉 `--adaptive`。
+
 ## 配置
 
 默认路径 `/etc/huawei-turbo/config.json`：
@@ -117,6 +133,7 @@ balanced / power-saver -> turbo off
 | 开机/重启 | `huawei-turbod.service` 启动时读取 `desired` 并应用 |
 | 休眠/睡眠恢复 | `/etc/systemd/system-sleep/huawei-turbo` 在 `post` 阶段重启 daemon |
 | 桌面切换性能模式 | PPD 适配器或 D-Bus/CLI 更新 `desired` 并应用 |
+| Turbo 状态变化 | `/run/huawei-turbo/status` 变化触发 `huawei-rapl.path`，写入 PL1/PL2 |
 | AC/电量不满足 | 状态文件记录错误，按 `retry_seconds` 重试 |
 | 内核/桌面重启 | 状态在 `/var/lib`，不依赖桌面会话 |
 
@@ -126,6 +143,9 @@ balanced / power-saver -> turbo off
 make
 sudo ./scripts/install.sh
 ```
+
+安装脚本同时安装 `huawei-rapl.service`/`huawei-rapl.path`；如果检测到
+thermald，还会安装去除 `--adaptive` 的 drop-in。
 
 卸载：
 

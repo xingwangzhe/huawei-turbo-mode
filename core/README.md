@@ -85,8 +85,12 @@ Commands are the same as the Chinese table above (`status`, `unlock`,
 ## Measurements
 
 First successful unlock (battery 22%, AC online): MMIO PL1 20.000 W → 31.000 W,
-EC[0x15] 0x20 → 0x60 (`TUBO=1`). The EC later derated to 10 W / 35 W at lower
-battery/thermal conditions; this is dynamic EC policy, not a failed unlock.
+EC[0x15] 0x20 → 0x60 (`TUBO=1`). The later 10 W / 35 W state was not EC policy:
+`thermald --adaptive` was applying the firmware DPTF passive policy. Stopping
+thermald or removing `--adaptive` and applying
+`rapl --pl1 31 --pl2 60.5 --apply` holds 31 W (15 s 16-thread burn: 93°C,
+~3630 RPM). `TDPS` is written by `STUB` but read back 0 while PL1 was 31 W; it
+is transient, not the persistent performance flag.
 Full data: [../docs/MEASUREMENTS.md](../docs/MEASUREMENTS.md).
 
 ## Fan

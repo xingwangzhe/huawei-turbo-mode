@@ -14,10 +14,15 @@ if [ "$(id -u)" -ne 0 ]; then
 	exit 1
 fi
 
+systemctl disable --now huawei-rapl.path huawei-rapl.service 2>/dev/null || true
 systemctl disable --now huawei-turbod.service 2>/dev/null || true
 "$PREFIX/bin/huawei-perf" unlock off 2>/dev/null || true
 
 rm -f /etc/systemd/system/huawei-turbod.service
+rm -f /etc/systemd/system/huawei-rapl.service
+rm -f /etc/systemd/system/huawei-rapl.path
+rm -f /etc/systemd/system/thermald.service.d/10-no-adaptive.conf
+rmdir /etc/systemd/system/thermald.service.d 2>/dev/null || true
 rm -f /etc/systemd/system-sleep/huawei-turbo
 rm -f /etc/dbus-1/system.d/org.xingwangzhe.HuaweiTurbo.conf
 rm -f "$PREFIX/bin/huawei-perf" "$PREFIX/bin/huawei-perf-burn"
@@ -31,4 +36,7 @@ fi
 
 systemctl daemon-reload
 systemctl reload dbus.service 2>/dev/null || true
+if systemctl is-active --quiet thermald.service 2>/dev/null; then
+	systemctl restart thermald.service 2>/dev/null || true
+fi
 echo "已卸载。EC 状态已尝试恢复为均衡模式。"
